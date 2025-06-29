@@ -19,6 +19,9 @@ export function validateData(
   // Cross-entity validations
   errors.push(...validateCrossEntityReferences(clients, workers, tasks));
   
+  // Advanced validations
+  errors.push(...validateAdvancedConstraints(clients, workers, tasks));
+  
   return errors;
 }
 
@@ -42,13 +45,13 @@ function validateClients(clients: Client[]): ValidationError[] {
       });
     }
 
-    if (!client.Name) {
+    if (!client.ClientName) {
       errors.push({
         id: `client_${index}_no_name`,
         type: 'error',
         entity: 'clients',
         rowId,
-        field: 'Name',
+        field: 'ClientName',
         message: 'Client name is required',
         suggestion: 'Add a name for this client'
       });
@@ -67,6 +70,19 @@ function validateClients(clients: Client[]): ValidationError[] {
       });
     } else if (client.ClientID) {
       seenIds.add(client.ClientID);
+    }
+
+    // Priority level validation
+    if (client.PriorityLevel < 1 || client.PriorityLevel > 5) {
+      errors.push({
+        id: `client_${index}_invalid_priority`,
+        type: 'error',
+        entity: 'clients',
+        rowId,
+        field: 'PriorityLevel',
+        message: 'PriorityLevel must be between 1 and 5',
+        suggestion: 'Set priority between 1 (low) and 5 (high)'
+      });
     }
 
     // Validate JSON
@@ -106,13 +122,13 @@ function validateWorkers(workers: Worker[]): ValidationError[] {
       });
     }
 
-    if (!worker.Name) {
+    if (!worker.WorkerName) {
       errors.push({
         id: `worker_${index}_no_name`,
         type: 'error',
         entity: 'workers',
         rowId,
-        field: 'Name',
+        field: 'WorkerName',
         message: 'Worker name is required',
         suggestion: 'Add a name for this worker'
       });
@@ -144,6 +160,20 @@ function validateWorkers(workers: Worker[]): ValidationError[] {
         message: 'AvailableSlots must be a non-empty array of numbers',
         suggestion: 'Add available time slots as numbers'
       });
+    } else {
+      // Check for non-numeric slots
+      const invalidSlots = worker.AvailableSlots.filter(slot => typeof slot !== 'number' || isNaN(slot));
+      if (invalidSlots.length > 0) {
+        errors.push({
+          id: `worker_${index}_invalid_slots`,
+          type: 'error',
+          entity: 'workers',
+          rowId,
+          field: 'AvailableSlots',
+          message: 'AvailableSlots contains non-numeric values',
+          suggestion: 'Ensure all slots are valid numbers'
+        });
+      }
     }
 
     // Validate MaxLoadPerPhase
@@ -192,7 +222,6 @@ function validateWorkers(workers: Worker[]): ValidationError[] {
 function validateTasks(tasks: Task[]): ValidationError[] {
   const errors: ValidationError[] = [];
   const seenIds = new Set<string>();
-  const coRunGroups = new Map<string, string[]>();
 
   tasks.forEach((task, index) => {
     const rowId = task.TaskID || `row_${index}`;
@@ -210,13 +239,13 @@ function validateTasks(tasks: Task[]): ValidationError[] {
       });
     }
 
-    if (!task.Name) {
+    if (!task.TaskName) {
       errors.push({
         id: `task_${index}_no_name`,
         type: 'error',
         entity: 'tasks',
         rowId,
-        field: 'Name',
+        field: 'TaskName',
         message: 'Task name is required',
         suggestion: 'Add a name for this task'
       });
@@ -237,19 +266,7 @@ function validateTasks(tasks: Task[]): ValidationError[] {
       seenIds.add(task.TaskID);
     }
 
-    // Validate ranges
-    if (task.PriorityLevel < 1 || task.PriorityLevel > 5) {
-      errors.push({
-        id: `task_${index}_invalid_priority`,
-        type: 'error',
-        entity: 'tasks',
-        rowId,
-        field: 'PriorityLevel',
-        message: 'PriorityLevel must be between 1 and 5',
-        suggestion: 'Set priority between 1 (low) and 5 (high)'
-      });
-    }
-
+    // Validate Duration
     if (task.Duration < 1) {
       errors.push({
         id: `task_${index}_invalid_duration`,
@@ -274,14 +291,6 @@ function validateTasks(tasks: Task[]): ValidationError[] {
       });
     }
 
-    // Track co-run groups for circular dependency check
-    if (task.CoRunGroupID && task.TaskID) {
-      if (!coRunGroups.has(task.CoRunGroupID)) {
-        coRunGroups.set(task.CoRunGroupID, []);
-      }
-      coRunGroups.get(task.CoRunGroupID)!.push(task.TaskID);
-    }
-
     // Validate JSON
     if (task.AttributesJSON && typeof task.AttributesJSON !== 'object') {
       errors.push({
@@ -292,22 +301,6 @@ function validateTasks(tasks: Task[]): ValidationError[] {
         field: 'AttributesJSON',
         message: 'Invalid JSON format in AttributesJSON',
         suggestion: 'Fix JSON syntax or leave empty'
-      });
-    }
-  });
-
-  // Check for circular co-run groups
-  coRunGroups.forEach((taskIds, groupId) => {
-    if (taskIds.length > 1) {
-      // For simplicity, we'll flag groups with more than one task as potential circular dependencies
-      errors.push({
-        id: `corun_group_${groupId}_circular`,
-        type: 'warning',
-        entity: 'tasks',
-        rowId: taskIds[0],
-        field: 'CoRunGroupID',
-        message: `Potential circular dependency in co-run group ${groupId}`,
-        suggestion: 'Review co-run group dependencies'
       });
     }
   });
@@ -376,6 +369,45 @@ function validateCrossEntityReferences(
         field: 'MaxConcurrent',
         message: `MaxConcurrent (${task.MaxConcurrent}) exceeds qualified workers (${qualifiedWorkers.length})`,
         suggestion: 'Reduce MaxConcurrent or add more qualified workers'
+      });
+    }
+  });
+
+  return errors;
+}
+
+function validateAdvancedConstraints(
+  clients: Client[],
+  workers: Worker[],
+  tasks: Task[]
+): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  // Phase-slot saturation check
+  const phaseSlotMap = new Map<number, number>();
+  workers.forEach(worker => {
+    worker.AvailableSlots.forEach(slot => {
+      phaseSlotMap.set(slot, (phaseSlotMap.get(slot) || 0) + worker.MaxLoadPerPhase);
+    });
+  });
+
+  const phaseDemandMap = new Map<number, number>();
+  tasks.forEach(task => {
+    task.PreferredPhases.forEach(phase => {
+      phaseDemandMap.set(phase, (phaseDemandMap.get(phase) || 0) + task.Duration);
+    });
+  });
+
+  phaseDemandMap.forEach((demand, phase) => {
+    const supply = phaseSlotMap.get(phase) || 0;
+    if (demand > supply) {
+      errors.push({
+        id: `phase_${phase}_oversaturated`,
+        type: 'warning',
+        entity: 'tasks',
+        rowId: 'system',
+        message: `Phase ${phase} is oversaturated: demand (${demand}) exceeds supply (${supply})`,
+        suggestion: 'Redistribute tasks across phases or add more worker capacity'
       });
     }
   });

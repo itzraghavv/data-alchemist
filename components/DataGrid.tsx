@@ -71,7 +71,7 @@ export function DataGrid() {
     }
 
     // Process numeric fields
-    if (['Duration', 'PriorityLevel', 'MaxConcurrent', 'MaxLoadPerPhase'].includes(editingCell.field)) {
+    if (['Duration', 'PriorityLevel', 'MaxConcurrent', 'MaxLoadPerPhase', 'QualificationLevel'].includes(editingCell.field)) {
       processedValue = parseInt(editValue, 10);
     }
 
@@ -231,9 +231,9 @@ export function DataGrid() {
                       <tr className="border-b">
                         <th className="text-left p-2 font-medium">Client ID</th>
                         <th className="text-left p-2 font-medium">Name</th>
-                        <th className="text-left p-2 font-medium">Location</th>
-                        <th className="text-left p-2 font-medium">Contact Info</th>
+                        <th className="text-left p-2 font-medium">Priority</th>
                         <th className="text-left p-2 font-medium">Requested Tasks</th>
+                        <th className="text-left p-2 font-medium">Group Tag</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -243,16 +243,21 @@ export function DataGrid() {
                             {renderEditableCell('clients', client.ClientID, 'ClientID', client.ClientID)}
                           </td>
                           <td className="p-2">
-                            {renderEditableCell('clients', client.ClientID, 'Name', client.Name)}
+                            {renderEditableCell('clients', client.ClientID, 'ClientName', client.ClientName)}
                           </td>
                           <td className="p-2">
-                            {renderEditableCell('clients', client.ClientID, 'Location', client.Location)}
-                          </td>
-                          <td className="p-2">
-                            {renderEditableCell('clients', client.ClientID, 'ContactInfo', client.ContactInfo)}
+                            <div className="flex items-center gap-2">
+                              {renderEditableCell('clients', client.ClientID, 'PriorityLevel', client.PriorityLevel)}
+                              <Badge variant={client.PriorityLevel >= 4 ? 'destructive' : client.PriorityLevel >= 3 ? 'default' : 'secondary'}>
+                                {client.PriorityLevel}
+                              </Badge>
+                            </div>
                           </td>
                           <td className="p-2">
                             {renderEditableCell('clients', client.ClientID, 'RequestedTaskIDs', client.RequestedTaskIDs)}
+                          </td>
+                          <td className="p-2">
+                            {renderEditableCell('clients', client.ClientID, 'GroupTag', client.GroupTag)}
                           </td>
                         </tr>
                       ))}
@@ -281,10 +286,11 @@ export function DataGrid() {
                       <tr className="border-b">
                         <th className="text-left p-2 font-medium">Worker ID</th>
                         <th className="text-left p-2 font-medium">Name</th>
-                        <th className="text-left p-2 font-medium">Location</th>
                         <th className="text-left p-2 font-medium">Skills</th>
                         <th className="text-left p-2 font-medium">Available Slots</th>
                         <th className="text-left p-2 font-medium">Max Load</th>
+                        <th className="text-left p-2 font-medium">Group</th>
+                        <th className="text-left p-2 font-medium">Level</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -294,10 +300,7 @@ export function DataGrid() {
                             {renderEditableCell('workers', worker.WorkerID, 'WorkerID', worker.WorkerID)}
                           </td>
                           <td className="p-2">
-                            {renderEditableCell('workers', worker.WorkerID, 'Name', worker.Name)}
-                          </td>
-                          <td className="p-2">
-                            {renderEditableCell('workers', worker.WorkerID, 'Location', worker.Location)}
+                            {renderEditableCell('workers', worker.WorkerID, 'WorkerName', worker.WorkerName)}
                           </td>
                           <td className="p-2">
                             {renderEditableCell('workers', worker.WorkerID, 'Skills', worker.Skills)}
@@ -307,6 +310,12 @@ export function DataGrid() {
                           </td>
                           <td className="p-2">
                             {renderEditableCell('workers', worker.WorkerID, 'MaxLoadPerPhase', worker.MaxLoadPerPhase)}
+                          </td>
+                          <td className="p-2">
+                            {renderEditableCell('workers', worker.WorkerID, 'WorkerGroup', worker.WorkerGroup)}
+                          </td>
+                          <td className="p-2">
+                            {renderEditableCell('workers', worker.WorkerID, 'QualificationLevel', worker.QualificationLevel)}
                           </td>
                         </tr>
                       ))}
@@ -335,9 +344,9 @@ export function DataGrid() {
                       <tr className="border-b">
                         <th className="text-left p-2 font-medium">Task ID</th>
                         <th className="text-left p-2 font-medium">Name</th>
+                        <th className="text-left p-2 font-medium">Category</th>
                         <th className="text-left p-2 font-medium">Required Skills</th>
                         <th className="text-left p-2 font-medium">Duration</th>
-                        <th className="text-left p-2 font-medium">Priority</th>
                         <th className="text-left p-2 font-medium">Preferred Phases</th>
                         <th className="text-left p-2 font-medium">Max Concurrent</th>
                       </tr>
@@ -349,21 +358,16 @@ export function DataGrid() {
                             {renderEditableCell('tasks', task.TaskID, 'TaskID', task.TaskID)}
                           </td>
                           <td className="p-2">
-                            {renderEditableCell('tasks', task.TaskID, 'Name', task.Name)}
+                            {renderEditableCell('tasks', task.TaskID, 'TaskName', task.TaskName)}
+                          </td>
+                          <td className="p-2">
+                            {renderEditableCell('tasks', task.TaskID, 'Category', task.Category)}
                           </td>
                           <td className="p-2">
                             {renderEditableCell('tasks', task.TaskID, 'RequiredSkills', task.RequiredSkills)}
                           </td>
                           <td className="p-2">
                             {renderEditableCell('tasks', task.TaskID, 'Duration', task.Duration)}
-                          </td>
-                          <td className="p-2">
-                            <div className="flex items-center gap-2">
-                              {renderEditableCell('tasks', task.TaskID, 'PriorityLevel', task.PriorityLevel)}
-                              <Badge variant={task.PriorityLevel >= 4 ? 'destructive' : task.PriorityLevel >= 3 ? 'default' : 'secondary'}>
-                                {task.PriorityLevel}
-                              </Badge>
-                            </div>
                           </td>
                           <td className="p-2">
                             {renderEditableCell('tasks', task.TaskID, 'PreferredPhases', task.PreferredPhases)}

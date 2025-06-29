@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { DataState, Client, Worker, Task, ValidationError, BusinessRule, PrioritySettings } from '@/types/data';
+import { DataState, Client, Worker, Task, ValidationError, BusinessRule, RuleSuggestion, PrioritySettings } from '@/types/data';
 
 interface DataContextType {
   state: DataState;
@@ -15,7 +15,11 @@ interface DataContextType {
   addBusinessRule: (rule: BusinessRule) => void;
   updateBusinessRule: (id: string, rule: Partial<BusinessRule>) => void;
   deleteBusinessRule: (id: string) => void;
+  setRuleSuggestions: (suggestions: RuleSuggestion[]) => void;
+  acceptRuleSuggestion: (suggestionId: string) => void;
+  dismissRuleSuggestion: (suggestionId: string) => void;
   setPrioritySettings: (settings: PrioritySettings) => void;
+  setPriorityProfile: (profile: string) => void;
   setLoading: (loading: boolean) => void;
 }
 
@@ -32,7 +36,11 @@ type DataAction =
   | { type: 'ADD_BUSINESS_RULE'; payload: BusinessRule }
   | { type: 'UPDATE_BUSINESS_RULE'; payload: { id: string; rule: Partial<BusinessRule> } }
   | { type: 'DELETE_BUSINESS_RULE'; payload: string }
+  | { type: 'SET_RULE_SUGGESTIONS'; payload: RuleSuggestion[] }
+  | { type: 'ACCEPT_RULE_SUGGESTION'; payload: string }
+  | { type: 'DISMISS_RULE_SUGGESTION'; payload: string }
   | { type: 'SET_PRIORITY_SETTINGS'; payload: PrioritySettings }
+  | { type: 'SET_PRIORITY_PROFILE'; payload: string }
   | { type: 'SET_LOADING'; payload: boolean };
 
 const initialState: DataState = {
@@ -41,13 +49,18 @@ const initialState: DataState = {
   tasks: [],
   validationErrors: [],
   businessRules: [],
+  ruleSuggestions: [],
   prioritySettings: {
-    costOptimization: 50,
-    timeEfficiency: 50,
-    qualityAssurance: 50,
-    resourceUtilization: 50,
-    clientSatisfaction: 50,
+    priorityLevel: 25,
+    taskFulfillment: 20,
+    fairnessConstraints: 15,
+    skillMatching: 15,
+    phaseOptimization: 10,
+    workloadBalance: 10,
+    clientSatisfaction: 3,
+    resourceUtilization: 2,
   },
+  priorityProfile: 'balanced',
   isLoading: false,
 };
 
@@ -104,8 +117,37 @@ function dataReducer(state: DataState, action: DataAction): DataState {
         ...state,
         businessRules: state.businessRules.filter(rule => rule.id !== action.payload),
       };
+    case 'SET_RULE_SUGGESTIONS':
+      return { ...state, ruleSuggestions: action.payload };
+    case 'ACCEPT_RULE_SUGGESTION':
+      const suggestion = state.ruleSuggestions.find(s => s.id === action.payload);
+      if (suggestion) {
+        const newRule: BusinessRule = {
+          id: `rule_${Date.now()}`,
+          name: suggestion.title,
+          description: suggestion.description,
+          type: suggestion.type as any,
+          parameters: suggestion.parameters,
+          priority: 50,
+          active: true,
+          createdAt: new Date().toISOString()
+        };
+        return {
+          ...state,
+          businessRules: [...state.businessRules, newRule],
+          ruleSuggestions: state.ruleSuggestions.filter(s => s.id !== action.payload)
+        };
+      }
+      return state;
+    case 'DISMISS_RULE_SUGGESTION':
+      return {
+        ...state,
+        ruleSuggestions: state.ruleSuggestions.filter(s => s.id !== action.payload)
+      };
     case 'SET_PRIORITY_SETTINGS':
       return { ...state, prioritySettings: action.payload };
+    case 'SET_PRIORITY_PROFILE':
+      return { ...state, priorityProfile: action.payload };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     default:
@@ -128,7 +170,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addBusinessRule: (rule) => dispatch({ type: 'ADD_BUSINESS_RULE', payload: rule }),
     updateBusinessRule: (id, rule) => dispatch({ type: 'UPDATE_BUSINESS_RULE', payload: { id, rule } }),
     deleteBusinessRule: (id) => dispatch({ type: 'DELETE_BUSINESS_RULE', payload: id }),
+    setRuleSuggestions: (suggestions) => dispatch({ type: 'SET_RULE_SUGGESTIONS', payload: suggestions }),
+    acceptRuleSuggestion: (suggestionId) => dispatch({ type: 'ACCEPT_RULE_SUGGESTION', payload: suggestionId }),
+    dismissRuleSuggestion: (suggestionId) => dispatch({ type: 'DISMISS_RULE_SUGGESTION', payload: suggestionId }),
     setPrioritySettings: (settings) => dispatch({ type: 'SET_PRIORITY_SETTINGS', payload: settings }),
+    setPriorityProfile: (profile) => dispatch({ type: 'SET_PRIORITY_PROFILE', payload: profile }),
     setLoading: (loading) => dispatch({ type: 'SET_LOADING', payload: loading }),
   };
 

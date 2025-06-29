@@ -1,31 +1,31 @@
 export interface Client {
   ClientID: string;
-  Name: string;
-  Location: string;
-  ContactInfo: string;
+  ClientName: string;
+  PriorityLevel: number;
   RequestedTaskIDs: string[];
+  GroupTag: string;
   AttributesJSON: Record<string, any>;
 }
 
 export interface Worker {
   WorkerID: string;
-  Name: string;
-  Location: string;
+  WorkerName: string;
   Skills: string[];
   AvailableSlots: number[];
   MaxLoadPerPhase: number;
+  WorkerGroup: string;
+  QualificationLevel: number;
   AttributesJSON: Record<string, any>;
 }
 
 export interface Task {
   TaskID: string;
-  Name: string;
-  RequiredSkills: string[];
+  TaskName: string;
+  Category: string;
   Duration: number;
-  PriorityLevel: number;
+  RequiredSkills: string[];
   PreferredPhases: number[];
   MaxConcurrent: number;
-  CoRunGroupID?: string;
   AttributesJSON: Record<string, any>;
 }
 
@@ -43,18 +43,32 @@ export interface BusinessRule {
   id: string;
   name: string;
   description: string;
-  condition: string;
-  action: string;
+  type: 'coRun' | 'slotRestriction' | 'loadLimit' | 'phaseWindow' | 'patternMatch' | 'precedenceOverride' | 'custom';
+  parameters: Record<string, any>;
   priority: number;
   active: boolean;
+  createdAt: string;
+}
+
+export interface RuleSuggestion {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  confidence: number;
+  parameters: Record<string, any>;
+  reasoning: string;
 }
 
 export interface PrioritySettings {
-  costOptimization: number;
-  timeEfficiency: number;
-  qualityAssurance: number;
-  resourceUtilization: number;
+  priorityLevel: number;
+  taskFulfillment: number;
+  fairnessConstraints: number;
+  skillMatching: number;
+  phaseOptimization: number;
+  workloadBalance: number;
   clientSatisfaction: number;
+  resourceUtilization: number;
 }
 
 export interface DataState {
@@ -63,6 +77,8 @@ export interface DataState {
   tasks: Task[];
   validationErrors: ValidationError[];
   businessRules: BusinessRule[];
+  ruleSuggestions: RuleSuggestion[];
   prioritySettings: PrioritySettings;
+  priorityProfile: string;
   isLoading: boolean;
 }
